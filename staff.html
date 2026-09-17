@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smile Charge 店員・会計管理画面 ⚡️</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+  <style>
+    :root { 
+      --primary: #8b0000; /* ワインレッド */
+      --primary-light: #fff0f0; 
+      --accent: #ffd700; /* 雷イエロー */
+      --bg: #fdfbfb; 
+      --card: #ffffff; 
+      --text: #2c3e50;
+      --border: #e0e0e0;
+    }
+
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background-color: var(--bg); margin: 0; padding: 15px; color: var(--text); }
+    .container { max-width: 750px; margin: 0 auto; background: var(--card); padding: 20px; border-radius: 20px; box-shadow: 0 4px 20px rgba(139, 0, 0, 0.08); border: 1px solid #f0e6e6; }
+    
+    /* ヘッダー */
+    .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid var(--primary-light); padding-bottom: 10px; }
+    .header h1 { margin: 0; font-size: 22px; color: var(--primary); display: flex; align-items: center; justify-content: center; gap: 8px; }
+
+    /* タブナビゲーション */
+    .nav-tabs { display: flex; gap: 6px; margin-bottom: 20px; border-bottom: 2px solid #eee; padding-bottom: 5px; }
+    .tab-btn { flex: 1; padding: 12px 5px; border: none; background: none; font-weight: bold; color: #7f8c8d; cursor: pointer; font-size: 13px; border-radius: 10px 10px 0 0; text-align: center; transition: all 0.2s; }
+    .tab-btn.active { color: var(--primary); background-color: var(--primary-light); border-bottom: 3px solid var(--primary); }
+
+    .hidden { display: none !important; }
+
+    /* 会計集計用スタイル */
+    .accounting-section { background: #fff; border-radius: 12px; }
+    .summary-cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin-bottom: 20px; }
+    .kpi-card { background: var(--primary-light); border: 1px solid #f5c6c6; border-radius: 12px; padding: 12px; text-align: center; }
+    .kpi-title { font-size: 11px; color: #666; font-weight: bold; }
+    .kpi-value { font-size: 20px; font-weight: 900; color: var(--primary); margin-top: 4px; }
+
+    .price-breakdown-card { background: #fff8f8; border: 2px dashed var(--primary); border-radius: 12px; padding: 15px; margin-bottom: 25px; }
+    .breakdown-row { display: flex; justify-content: space-between; font-size: 14px; margin-bottom: 6px; padding-bottom: 4px; border-bottom: 1px dashed #e0e0e0; }
+    .breakdown-row.total { font-size: 18px; font-weight: bold; color: var(--primary); border-bottom: none; margin-top: 10px; padding-top: 8px; border-top: 2px solid var(--primary); }
+
+    .table-title { font-size: 15px; font-weight: bold; color: var(--primary); margin: 20px 0 8px 0; display: flex; align-items: center; gap: 6px; border-left: 4px solid var(--primary); padding-left: 8px; }
+    .report-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; }
+    .report-table th, .report-table td { border: 1px solid var(--border); padding: 8px 10px; text-align: left; }
+    .report-table th { background-color: #f8f9fa; color: #495057; font-weight: bold; }
+    .report-table td.num, .report-table th.num { text-align: right; }
+    .report-table tr.total-row { background-color: var(--primary-light); font-weight: bold; color: var(--primary); }
+
+    /* ボタン */
+    .btn-csv { background: var(--primary); color: white; border: none; padding: 14px; font-size: 15px; font-weight: bold; border-radius: 12px; cursor: pointer; width: 100%; margin: 15px 0 25px 0; box-shadow: 0 4px 10px rgba(139, 0, 0, 0.2); display: flex; align-items: center; justify-content: center; gap: 8px; transition: 0.2s; }
+    .btn-csv:hover { background: #660000; }
+
+    /* レジ・スキャナー機能 */
+    .scanner-box { background: #f8f9fa; border: 2px dashed #ccc; border-radius: 15px; padding: 15px; text-align: center; margin-bottom: 20px; }
+    #video-container { position: relative; width: 100%; max-width: 320px; height: 240px; margin: 10px auto; overflow: hidden; border-radius: 10px; background: #000; }
+    #qr-video { width: 100%; height: 100%; object-fit: cover; }
+    .checkout-card { background: #fff9db; border: 3px solid #f59f00; border-radius: 16px; padding: 20px 15px; margin-top: 15px; text-align: center; }
+    .checkout-amount { font-size: 48px; font-weight: 900; color: #e03131; margin: 10px 0; }
+
+    .btn { background: #2ed573; color: white; border: none; padding: 12px 20px; font-size: 15px; font-weight: bold; border-radius: 10px; cursor: pointer; width: 100%; margin-top: 10px; }
+    .btn-secondary { background: var(--primary); }
+    .btn-cancel { background: #a4b0be; }
+
+    /* 注文リスト */
+    .order-list { display: flex; flex-direction: column; gap: 10px; }
+    .order-card { background: var(--card); border-radius: 12px; padding: 15px; border: 1px solid #eee; border-left: 6px solid #ccc; }
+    .order-card.pending { border-left-color: #ffa502; }
+    .order-card.paid { border-left-color: #2ed573; }
+    .order-card.completed { border-left-color: #70a1ff; opacity: 0.7; }
+    .order-header { display: flex; justify-content: space-between; align-items: center; font-weight: bold; margin-bottom: 4px; }
+    .order-nickname { font-size: 14px; color: var(--primary); font-weight: bold; margin-bottom: 8px; }
+    .order-details { font-size: 13px; color: #555; background: #f8f9fa; padding: 8px; border-radius: 6px; margin: 8px 0; white-space: pre-wrap; }
+    .action-group { display: flex; gap: 8px; margin-top: 10px; }
+    .btn-mini { flex: 1; padding: 8px; font-size: 12px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; color: white; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>⚡️ Smile Charge 管理画面</h1>
+    </div>
+
+    <!-- タブナビゲーション -->
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('accounting')">📊 会計集計</button>
+      <button class="tab-btn" onclick="switchTab('register')">💰 レジ</button>
+      <button class="tab-btn" onclick="switchTab('kitchen')">👨‍🍳 厨房</button>
+    </div>
+
+    <!-- 1. 会計集計タブ -->
+    <div id="accounting-tab" class="accounting-section">
+      
+      <!-- CSV出力ボタン -->
+      <button class="btn-csv" onclick="exportOrdersToCSV()">📥 注文明細CSVをダウンロード</button>
+
+      <!-- KPI概要 -->
+      <div class="summary-cards-grid">
+        <div class="kpi-card">
+          <div class="kpi-title">総注文数</div>
+          <div class="kpi-value" id="kpi-total-orders">0 件</div>
+        </div>
+        <div class="kpi-card">
+          <div class="kpi-title">総売上金額</div>
+          <div class="kpi-value" id="kpi-total-sales">¥0</div>
+        </div>
+      </div>
+
+      <!-- 料金の内訳 -->
+      <div class="price-breakdown-card">
+        <div style="font-weight:bold; color:var(--primary); margin-bottom:10px; text-align:center;">売上料金内訳 ⚡️</div>
+        <div class="breakdown-row"><span>基本料金合計（サイズ）</span><span id="breakdown-base">¥0</span></div>
+        <div class="breakdown-row"><span>アイス料金合計</span><span id="breakdown-ice">¥0</span></div>
+        <div class="breakdown-row"><span>トッピング料金合計</span><span id="breakdown-topping">¥0</span></div>
+        <div class="breakdown-row total"><span>総売上金額</span><span id="breakdown-total">¥0</span></div>
+      </div>
+
+      <!-- サイズ集計表 -->
+      <div class="table-title">■ サイズ集計</div>
+      <table class="report-table">
+        <thead>
+          <tr><th>項目</th><th class="num">注文個数</th><th class="num">合計金額</th></tr>
+        </thead>
+        <tbody id="size-report-body"></tbody>
+      </table>
+
+      <!-- アイス集計表 -->
+      <div class="table-title">■ アイス集計</div>
+      <table class="report-table">
+        <thead>
+          <tr><th>アイス</th><th class="num">注文個数</th><th class="num">単価</th><th class="num">合計金額</th></tr>
+        </thead>
+        <tbody id="ice-report-body"></tbody>
+      </table>
+
+      <!-- トッピング集計表 -->
+      <div class="table-title">■ トッピング集計</div>
+      <table class="report-table">
+        <thead>
+          <tr><th>トッピング</th><th class="num">注文個数</th><th class="num">単価</th><th class="num">合計金額</th></tr>
+        </thead>
+        <tbody id="topping-report-body"></tbody>
+      </table>
+    </div>
+
+    <!-- 2. レジタブ -->
+    <div id="register-tab" class="hidden">
+      <div class="scanner-box">
+        <h3 style="margin:0 0 10px 0;">📷 会計QRスキャナー</h3>
+        <button class="btn btn-secondary" id="cam-toggle-btn" onclick="toggleCamera()" style="margin-top:0; margin-bottom:10px;">カメラを起動する</button>
+        <div id="video-container" class="hidden">
+          <video id="qr-video" playsinline></video>
+        </div>
+
+        <div id="checkout-area" class="checkout-card" style="display:none;">
+          <h3 style="margin:0; color:#d9480f;">💳 お会計</h3>
+          <div id="checkout-order-num" style="font-size:16px; font-weight:bold; margin-top:6px;">注文番号: #-</div>
+          <div id="checkout-nickname" style="font-size:15px; font-weight:bold; color:var(--primary); margin-top:4px;">お呼び名: - 様</div>
+          <div class="checkout-amount" id="checkout-price">¥0</div>
+          <div id="checkout-details" style="font-size:13px; text-align:left; background:white; padding:10px; border-radius:8px; margin-bottom:12px; border:1px solid #ffe3e3;"></div>
+          <button class="btn" onclick="confirmPayment()">💵 現金支払い完了（確定）</button>
+          <button class="btn btn-cancel" onclick="cancelCheckout()">キャンセル</button>
+        </div>
+      </div>
+
+      <h3 style="margin:15px 0 10px 0;">未会計一覧</h3>
+      <div class="order-list" id="register-order-list"></div>
+    </div>
+
+    <!-- 3. 厨房タブ -->
+    <div id="kitchen-tab" class="hidden">
+      <h3 style="margin:0 0 10px 0;">調理中・未提供リスト</h3>
+      <div class="order-list" id="kitchen-order-list"></div>
+    </div>
+  </div>
+
+  <script>
+    // Firebase設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyCE-Ssm6n_VK0_UTPvsR7LF5hmbMHmFjnA",
+      authDomain: "pahue-47da7.firebaseapp.com",
+      projectId: "pahue-47da7",
+      storageBucket: "pahue-47da7.firebasestorage.app",
+      messagingSenderId: "802677688652",
+      appId: "1:802677688652:web:79d3602c6078b8931d67e9"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // マスタ定義
+    const SIZE_PRICES = { "M": 250, "L": 350 };
+    const ICE_PRICES = { "バニラアイス": 60, "抹茶アイス": 60, "なし": 0 };
+    const TOPPING_PRICES = {
+      "ドーナツ（きなこ）": 40,
+      "トッポ": 30,
+      "チョコスプレー": 20,
+      "オレオ": 40,
+      "マシュマロ": 30,
+      "イチゴソース": 20,
+      "チョコソース": 20
+    };
+
+    let globalOrdersCache = {};
+
+    /* タブ切り替え */
+    function switchTab(tab) {
+      document.getElementById('accounting-tab').classList.toggle('hidden', tab !== 'accounting');
+      document.getElementById('register-tab').classList.toggle('hidden', tab !== 'register');
+      document.getElementById('kitchen-tab').classList.toggle('hidden', tab !== 'kitchen');
+      
+      const btns = document.querySelectorAll('.tab-btn');
+      btns[0].classList.toggle('active', tab === 'accounting');
+      btns[1].classList.toggle('active', tab === 'register');
+      btns[2].classList.toggle('active', tab === 'kitchen');
+    }
+
+    /* リアルタイムデータ監視 & 集計処理 */
+    db.ref('orders').on('value', (snapshot) => {
+      const data = snapshot.val() || {};
+      globalOrdersCache = data;
+
+      renderAccountingReport(data);
+      renderRegisterAndKitchenLists(data);
+    });
+
+    /* 集計表の計算と描画 */
+    function renderAccountingReport(orders) {
+      let totalOrders = 0;
+      let grandTotalSales = 0;
+      let totalBaseSales = 0;
+      let totalIceSales = 0;
+      let totalToppingSales = 0;
+
+      const sizeCounts = { "M": 0, "L": 0 };
+      const iceCounts = {};
+      Object.keys(ICE_PRICES).forEach(k => iceCounts[k] = 0);
+      
+      const toppingCounts = {};
+      Object.keys(TOPPING_PRICES).forEach(k => toppingCounts[k] = 0);
+
+      Object.values(orders).forEach(order => {
+        const items = order.cartItems || order.items || [order];
+
+        items.forEach(item => {
+          const itemQty = Number(item.quantity || item.count || 1);
+          totalOrders += itemQty;
+
+          // サイズ集計
+          const size = item.size || "M";
+          sizeCounts[size] = (sizeCounts[size] || 0) + itemQty;
+          const basePrice = (SIZE_PRICES[size] !== undefined) ? SIZE_PRICES[size] : Number(item.basePrice || 250);
+          totalBaseSales += basePrice * itemQty;
+
+          // アイス集計
+          const iceName = item.ice || item.iceType || "なし";
+          iceCounts[iceName] = (iceCounts[iceName] || 0) + itemQty;
+          const iceUnitPrice = (ICE_PRICES[iceName] !== undefined) ? ICE_PRICES[iceName] : Number(item.icePrice || 0);
+          totalIceSales += iceUnitPrice * itemQty;
+
+          // トッピング集計
+          if (item.toppings) {
+            if (Array.isArray(item.toppings)) {
+              item.toppings.forEach(t => {
+                let name = typeof t === 'object' ? t.name : t;
+                let count = typeof t === 'object' ? Number(t.count || t.quantity || 1) : 1;
+                toppingCounts[name] = (toppingCounts[name] || 0) + (count * itemQty);
+              });
+            } else if (typeof item.toppings === 'object') {
+              Object.keys(item.toppings).forEach(name => {
+                let count = Number(item.toppings[name] || 1);
+                toppingCounts[name] = (toppingCounts[name] || 0) + (count * itemQty);
+              });
+            }
+          }
+        });
+      });
+
+      // UI反映
+      grandTotalSales = totalBaseSales + totalIceSales;
+      Object.keys(toppingCounts).forEach(tName => {
+        const uPrice = TOPPING_PRICES[tName] || 0;
+        totalToppingSales += uPrice * toppingCounts[tName];
+      });
+      grandTotalSales += totalToppingSales;
+
+      document.getElementById('kpi-total-orders').innerText = `${totalOrders.toLocaleString()} 件`;
+      document.getElementById('kpi-total-sales').innerText = `¥${grandTotalSales.toLocaleString()}`;
+
+      document.getElementById('breakdown-base').innerText = `¥${totalBaseSales.toLocaleString()}`;
+      document.getElementById('breakdown-ice').innerText = `¥${totalIceSales.toLocaleString()}`;
+      document.getElementById('breakdown-topping').innerText = `¥${totalToppingSales.toLocaleString()}`;
+      document.getElementById('breakdown-total').innerText = `¥${grandTotalSales.toLocaleString()}`;
+
+      // テーブル描画: サイズ
+      let sizeHtml = "", totalSizeQty = 0, totalSizeAmount = 0;
+      Object.keys(sizeCounts).forEach(sz => {
+        const qty = sizeCounts[sz];
+        const uPrice = SIZE_PRICES[sz] || 0;
+        const amt = qty * uPrice;
+        totalSizeQty += qty;
+        totalSizeAmount += amt;
+        sizeHtml += `<tr><td>${sz}サイズ</td><td class="num">${qty}個</td><td class="num">¥${amt.toLocaleString()}</td></tr>`;
+      });
+      sizeHtml += `<tr class="total-row"><td>合計</td><td class="num">${totalSizeQty}個</td><td class="num">¥${totalSizeAmount.toLocaleString()}</td></tr>`;
+      document.getElementById('size-report-body').innerHTML = sizeHtml;
+
+      // テーブル描画: アイス
+      let iceHtml = "", totalIceQty = 0, totalIceAmount = 0;
+      Object.keys(iceCounts).forEach(ic => {
+        const qty = iceCounts[ic];
+        const uPrice = ICE_PRICES[ic] !== undefined ? ICE_PRICES[ic] : 0;
+        const amt = qty * uPrice;
+        totalIceQty += qty;
+        totalIceAmount += amt;
+        iceHtml += `<tr><td>${ic}</td><td class="num">${qty}個</td><td class="num">¥${uPrice}</td><td class="num">¥${amt.toLocaleString()}</td></tr>`;
+      });
+      iceHtml += `<tr class="total-row"><td>合計</td><td class="num">${totalIceQty}個</td><td class="num">-</td><td class="num">¥${totalIceAmount.toLocaleString()}</td></tr>`;
+      document.getElementById('ice-report-body').innerHTML = iceHtml;
+
+      // テーブル描画: トッピング
+      let toppingHtml = "", totalToppingQty = 0, totalToppingAmtSum = 0;
+      Object.keys(toppingCounts).forEach(tp => {
+        const qty = toppingCounts[tp];
+        const uPrice = TOPPING_PRICES[tp] || 0;
+        const amt = qty * uPrice;
+        totalToppingQty += qty;
+        totalToppingAmtSum += amt;
+        toppingHtml += `<tr><td>${tp}</td><td class="num">${qty}個</td><td class="num">¥${uPrice}</td><td class="num">¥${amt.toLocaleString()}</td></tr>`;
+      });
+      toppingHtml += `<tr class="total-row"><td>合計</td><td class="num">${totalToppingQty}個</td><td class="num">-</td><td class="num">¥${totalToppingAmtSum.toLocaleString()}</td></tr>`;
+      document.getElementById('topping-report-body').innerHTML = toppingHtml;
+    }
+
+    /* UTF-8 BOM付き 注文明細CSVダウンロード（ニックネーム列を追加） */
+    function exportOrdersToCSV() {
+      const orders = globalOrdersCache;
+      if (!orders || Object.keys(orders).length === 0) {
+        alert("出力できる注文データがありません。");
+        return;
+      }
+
+      // ヘッダー行に「ニックネーム」を追加
+      let csvLines = [
+        "注文番号,注文日時,ニックネーム,商品名,サイズ,基本料金,アイス,アイス料金,トッピング,トッピング個数,トッピング料金,個数,合計金額"
+      ];
+
+      Object.keys(orders).forEach(orderKey => {
+        const order = orders[orderKey];
+        const orderNum = order.orderNum || orderKey;
+        const orderTime = order.time || order.createdAt || "";
+        const nickname = order.nickname || order.userName || "（未設定）";
+        const items = order.cartItems || order.items || [order];
+
+        items.forEach(item => {
+          const productName = item.productName || item.name || "カスタムパフェ";
+          const size = item.size || "M";
+          const basePrice = (SIZE_PRICES[size] !== undefined) ? SIZE_PRICES[size] : Number(item.basePrice || 250);
+          
+          const ice = item.ice || item.iceType || "なし";
+          const icePrice = (ICE_PRICES[ice] !== undefined) ? ICE_PRICES[ice] : Number(item.icePrice || 0);
+
+          let toppingNames = [];
+          let toppingCountsArr = [];
+          let itemToppingTotalPrice = 0;
+
+          if (item.toppings) {
+            if (Array.isArray(item.toppings)) {
+              item.toppings.forEach(t => {
+                let name = typeof t === 'object' ? t.name : t;
+                let count = typeof t === 'object' ? Number(t.count || t.quantity || 1) : 1;
+                let uPrice = TOPPING_PRICES[name] || 0;
+                toppingNames.push(name);
+                toppingCountsArr.push(count);
+                itemToppingTotalPrice += uPrice * count;
+              });
+            } else if (typeof item.toppings === 'object') {
+              Object.keys(item.toppings).forEach(name => {
+                let count = Number(item.toppings[name] || 1);
+                let uPrice = TOPPING_PRICES[name] || 0;
+                toppingNames.push(name);
+                toppingCountsArr.push(count);
+                itemToppingTotalPrice += uPrice * count;
+              });
+            }
+          }
+
+          const toppingStr = `"${toppingNames.join(" / ")}"`;
+          const toppingCountStr = `"${toppingCountsArr.join(" / ")}"`;
+          const itemQty = Number(item.quantity || item.count || 1);
+          const singleItemTotal = basePrice + icePrice + itemToppingTotalPrice;
+          const lineTotalPrice = singleItemTotal * itemQty;
+
+          const row = [
+            `#${orderNum}`,
+            `"${orderTime}"`,
+            `"${nickname}"`,
+            `"${productName}"`,
+            size,
+            basePrice,
+            `"${ice}"`,
+            icePrice,
+            toppingStr,
+            toppingCountStr,
+            itemToppingTotalPrice,
+            itemQty,
+            lineTotalPrice
+          ];
+
+          csvLines.push(row.join(","));
+        });
+      });
+
+      const csvString = "\uFEFF" + csvLines.join("\n");
+      const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+      
+      const now = new Date();
+      const yyyy = now.getFullYear();
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const fileName = `smile_charge_orders_${yyyy}${mm}${dd}.csv`;
+
+      const link = document.createElement("a");
+      const url = URL.createObjectURL(blob);
+      link.setAttribute("href", url);
+      link.setAttribute("download", fileName);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+
+    /* レジ・厨房リストの描画（ニックネーム表示対応） */
+    function renderRegisterAndKitchenLists(data) {
+      const regList = document.getElementById("register-order-list");
+      const kitList = document.getElementById("kitchen-order-list");
+      regList.innerHTML = "";
+      kitList.innerHTML = "";
+
+      if (!data || Object.keys(data).length === 0) {
+        regList.innerHTML = `<div style="text-align:center; color:#999; padding:10px;">未会計の注文はありません</div>`;
+        kitList.innerHTML = `<div style="text-align:center; color:#999; padding:10px;">調理中の注文はありません</div>`;
+        return;
+      }
+
+      Object.keys(data).reverse().forEach(key => {
+        const order = data[key];
+        let detailsHtml = Array.isArray(order.details) ? order.details.join('<br>') : (order.details || "詳細なし");
+        const nickname = order.nickname || order.userName || "（未設定）";
+
+        if (order.status === 'pending') {
+          const card = document.createElement("div");
+          card.className = "order-card pending";
+          card.innerHTML = `
+            <div class="order-header">
+              <span>#${order.orderNum} (${order.time || ''})</span>
+              <span style="color:#ffa502; font-size:12px;">未会計</span>
+            </div>
+            <div class="order-nickname">👤 お呼び名: ${nickname} 様</div>
+            <div style="font-weight:bold; color:var(--primary);">金額: ¥${Number(order.price || 0).toLocaleString()}</div>
+            <div class="order-details">${detailsHtml}</div>
+            <div class="action-group">
+              <button class="btn-mini" style="background:#2ed573;" onclick="updateStatus('${key}', 'paid')">直接会計完了にする</button>
+            </div>
+          `;
+          regList.appendChild(card);
+        }
+
+        if (order.status === 'paid' || order.status === 'completed') {
+          const card = document.createElement("div");
+          card.className = `order-card ${order.status}`;
+          let statusText = order.status === 'paid' ? '調理中' : '提供完了';
+          let actionBtn = order.status === 'paid' 
+            ? `<button class="btn-mini" style="background:#70a1ff;" onclick="updateStatus('${key}', 'completed')">提供完了にする</button>`
+            : `<button class="btn-mini" style="background:#a4b0be;" onclick="updateStatus('${key}', 'paid')">調理中に戻す</button>`;
+
+          card.innerHTML = `
+            <div class="order-header">
+              <span>#${order.orderNum} (${order.time || ''})</span>
+              <span style="font-size:12px;">${statusText}</span>
+            </div>
+            <div class="order-nickname">👤 お呼び名: ${nickname} 様</div>
+            <div style="font-weight:bold; color:var(--primary);">金額: ¥${Number(order.price || 0).toLocaleString()}</div>
+            <div class="order-details">${detailsHtml}</div>
+            <div class="action-group">${actionBtn}</div>
+          `;
+          kitList.appendChild(card);
+        }
+      });
+    }
+
+    /* レジ用QRコードカメラ＆決済処理 */
+    let selectedOrderKey = null, isScanning = false, cameraStream = null;
+    const video = document.getElementById('qr-video');
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    function toggleCamera() { isScanning ? stopCamera() : startCamera(); }
+    function startCamera() {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } }).then(stream => {
+        cameraStream = stream;
+        video.srcObject = stream;
+        video.play();
+        isScanning = true;
+        document.getElementById("video-container").classList.remove("hidden");
+        document.getElementById("cam-toggle-btn").innerText = "カメラを停止する";
+        requestAnimationFrame(tick);
+      });
+    }
+    function stopCamera() {
+      if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+      isScanning = false;
+      document.getElementById("video-container").classList.add("hidden");
+      document.getElementById("cam-toggle-btn").innerText = "カメラを起動する";
+    }
+    function tick() {
+      if (video.readyState === video.HAVE_ENOUGH_DATA && isScanning) {
+        canvas.height = video.videoHeight; canvas.width = video.videoWidth;
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const code = jsQR(ctx.getImageData(0, 0, canvas.width, canvas.height).data, canvas.width, canvas.height);
+        if (code && code.data) { handleQrScanned(code.data); return; }
+      }
+      if (isScanning) requestAnimationFrame(tick);
+    }
+    function handleQrScanned(orderKey) {
+      selectedOrderKey = orderKey;
+      db.ref('orders/' + orderKey).once('value').then(snap => {
+        const order = snap.val();
+        if (!order) return alert("注文が見つかりません");
+        const nickname = order.nickname || order.userName || "（未設定）";
+        document.getElementById("checkout-order-num").innerText = `注文番号: #${order.orderNum}`;
+        document.getElementById("checkout-nickname").innerText = `お呼び名: ${nickname} 様`;
+        document.getElementById("checkout-price").innerText = `¥${Number(order.price || 0).toLocaleString()}`;
+        document.getElementById("checkout-details").innerHTML = Array.isArray(order.details) ? order.details.join('<br>') : order.details;
+        document.getElementById("checkout-area").style.display = "block";
+      });
+    }
+    function confirmPayment() {
+      if (!selectedOrderKey) return;
+      db.ref('orders/' + selectedOrderKey).update({ status: 'paid' }).then(() => {
+        alert("お支払いが完了しました！");
+        document.getElementById("checkout-area").style.display = "none";
+        selectedOrderKey = null;
+      });
+    }
+    function cancelCheckout() { document.getElementById("checkout-area").style.display = "none"; }
+    function updateStatus(key, status) { db.ref('orders/' + key).update({ status }); }
+  </script>
+</body>
+</html>

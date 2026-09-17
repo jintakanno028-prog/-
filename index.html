@@ -1,0 +1,1180 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smile Charge パフェ注文システム</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Impact&family=M+PLUS+Rounded+1c:wght@700;900&display=swap');
+
+    :root {
+      --wine-dark: #660000;
+      --wine-main: #8B0000;
+      --wine-light: #B22222;
+      --cream-bg: #FFFDF8;
+      --card-bg: #FFFFFF;
+      --yellow-accent: #FFD700;
+      --text-dark: #2A0808;
+      --text-muted: #665555;
+      --border-stroke: #8B0000;
+    }
+
+    body {
+      font-family: 'M PLUS Rounded 1c', 'Arial Black', sans-serif;
+      background-color: var(--cream-bg);
+      background-image: radial-gradient(var(--wine-light) 0.7px, transparent 0.7px);
+      background-size: 16px 16px;
+      color: var(--text-dark);
+      margin: 0;
+      padding: 15px;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      box-sizing: border-box;
+    }
+
+    .container {
+      background-color: var(--card-bg);
+      border: 3px solid var(--wine-main);
+      border-radius: 20px;
+      padding: 20px;
+      max-width: 450px;
+      width: 100%;
+      box-shadow: 0 10px 0px var(--wine-dark), 0 15px 25px rgba(102, 0, 0, 0.2);
+      position: relative;
+    }
+
+    /* ヘッダー */
+    .brand-title {
+      font-family: 'Impact', 'M PLUS Rounded 1c', sans-serif;
+      font-size: 28px;
+      text-align: center;
+      color: var(--wine-main);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 5px 0 15px 0;
+      text-shadow: 
+        2px 2px 0 #fff,
+        -2px -2px 0 #fff,
+        2px -2px 0 #fff,
+        -2px 2px 0 #fff,
+        0px 3px 0px var(--wine-dark);
+    }
+
+    /* ナビタブ */
+    .nav-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 20px;
+      border-bottom: 3px solid var(--wine-main);
+      padding-bottom: 6px;
+    }
+    .tab-btn {
+      flex: 1;
+      padding: 10px 4px;
+      border: 2px solid var(--wine-main);
+      background: var(--cream-bg);
+      font-weight: 900;
+      color: var(--wine-main);
+      cursor: pointer;
+      font-size: 13px;
+      border-radius: 10px;
+      transition: all 0.1s ease;
+    }
+    .tab-btn.active {
+      color: #ffffff;
+      background-color: var(--wine-main);
+      box-shadow: 0 3px 0 var(--wine-dark);
+      transform: translateY(-2px);
+    }
+
+    h1, h2 {
+      text-align: center;
+      color: var(--wine-main);
+      margin-top: 0;
+      font-family: 'Impact', 'M PLUS Rounded 1c', sans-serif;
+      letter-spacing: 0.5px;
+    }
+    .description {
+      font-size: 12px;
+      color: var(--text-muted);
+      text-align: center;
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
+
+    /* ボタン類 */
+    .btn {
+      background-color: var(--wine-main);
+      color: white;
+      border: 2px solid var(--wine-dark);
+      padding: 12px 20px;
+      font-size: 15px;
+      font-weight: 900;
+      border-radius: 25px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 15px;
+      box-shadow: 0 4px 0 var(--wine-dark);
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    .btn:active {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 var(--wine-dark);
+    }
+
+    .option-btn {
+      background-color: var(--cream-bg);
+      color: var(--wine-dark);
+      border: 2px solid var(--wine-main);
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 900;
+      border-radius: 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      box-shadow: 0 3px 0 var(--wine-main);
+    }
+    .option-btn:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 var(--wine-main);
+    }
+
+    .hidden { display: none !important; }
+
+    /* セクションタイトル */
+    .section-title {
+      font-size: 13px;
+      font-weight: 900;
+      background: var(--wine-main);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      margin: 18px 0 10px 0;
+      display: inline-block;
+      letter-spacing: 0.5px;
+      box-shadow: 2px 2px 0 var(--wine-dark);
+    }
+    .menu-group { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+    .menu-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--cream-bg);
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1.5px solid #e0d5d5;
+      font-weight: bold;
+    }
+    .menu-item select, .menu-item input[type="number"], .input-text {
+      padding: 6px;
+      border-radius: 6px;
+      border: 2px solid var(--wine-main);
+      font-weight: bold;
+    }
+    .input-text {
+      width: 100%;
+      box-sizing: border-box;
+      font-size: 14px;
+    }
+    
+    /* ゲージUI */
+    .smile-charge-card {
+      background: #FFFFFF;
+      border: 3px solid var(--wine-main);
+      border-radius: 16px;
+      padding: 12px 15px;
+      margin-bottom: 18px;
+      box-shadow: 0 6px 0px var(--wine-dark);
+      position: sticky;
+      top: 10px;
+      z-index: 100;
+    }
+    .charge-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .charge-title {
+      font-size: 14px;
+      font-weight: 900;
+      color: var(--wine-main);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-family: 'Impact', 'M PLUS Rounded 1c', sans-serif;
+      letter-spacing: 0.5px;
+    }
+    .bolt-icon {
+      font-size: 18px;
+      color: var(--yellow-accent);
+      text-shadow: 1px 1px 0 var(--wine-main);
+      display: inline-block;
+      transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    .bolt-icon.full-charge {
+      animation: boltBounce 0.5s infinite alternate;
+      filter: drop-shadow(0 0 6px var(--yellow-accent));
+    }
+    @keyframes boltBounce {
+      0% { transform: scale(1) rotate(0deg); }
+      100% { transform: scale(1.35) rotate(15deg); }
+    }
+    .charge-status-text {
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--wine-main);
+      text-align: right;
+    }
+    .charge-bar-container {
+      position: relative;
+      background: var(--cream-bg);
+      border-radius: 20px;
+      height: 20px;
+      padding: 2px;
+      border: 2px solid var(--wine-main);
+      overflow: hidden;
+    }
+    .charge-bar-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 20px;
+      background: linear-gradient(90deg, #FFD700 0%, #FF8C00 50%, var(--wine-main) 100%);
+      transition: width 0.35s ease-out;
+      position: relative;
+    }
+    .charge-percent-badge {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--wine-dark);
+      font-family: 'Impact', sans-serif;
+    }
+
+    /* ボトムカスタムバー */
+    .custom-bottom-bar-wrapper {
+      position: sticky;
+      bottom: 10px;
+      z-index: 90;
+      margin-top: 20px;
+    }
+    .custom-bottom-bar {
+      background: #FFFFFF;
+      border: 3px solid var(--wine-main);
+      border-radius: 18px;
+      padding: 10px 14px;
+      box-shadow: 0 6px 0 var(--wine-dark);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .custom-price-display {
+      display: flex;
+      flex-direction: column;
+    }
+    .custom-price-label {
+      font-size: 11px;
+      font-weight: 900;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .custom-price-val {
+      font-size: 22px;
+      font-weight: 900;
+      color: var(--wine-main);
+      font-family: 'Impact', sans-serif;
+      line-height: 1;
+      letter-spacing: 0.5px;
+    }
+    .add-cart-btn-fixed {
+      background: var(--wine-main);
+      color: white;
+      border: 2px solid var(--wine-dark);
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 900;
+      border-radius: 20px;
+      cursor: pointer;
+      box-shadow: 0 3px 0 var(--wine-dark);
+      white-space: nowrap;
+      transition: transform 0.1s active;
+    }
+    .add-cart-btn-fixed:active {
+      transform: translateY(2px);
+      box-shadow: 0 1px 0 var(--wine-dark);
+    }
+
+    .bottom-spacer { height: 20px; }
+
+    /* カート表示 */
+    .cart-box {
+      background: var(--cream-bg);
+      border: 2px dashed var(--wine-main);
+      border-radius: 15px;
+      padding: 12px;
+      margin-top: 20px;
+    }
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: white;
+      padding: 8px 10px;
+      border-radius: 8px;
+      margin-top: 6px;
+      font-size: 12px;
+      border: 1px solid #e0d5d5;
+      font-weight: bold;
+    }
+    .cart-item-del {
+      background: var(--wine-main);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      font-size: 11px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    
+    .total-box {
+      background: var(--wine-main);
+      color: white;
+      padding: 12px 20px;
+      border-radius: 15px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 900;
+      font-size: 16px;
+      box-shadow: 0 4px 0 var(--wine-dark);
+      margin-top: 15px;
+      border: 2px solid var(--wine-dark);
+    }
+    
+    .upload-box {
+      background: var(--cream-bg);
+      border: 2px dashed var(--wine-main);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 15px;
+    }
+    .upload-box select, .upload-box textarea, .upload-box input {
+      width: 100%;
+      margin-bottom: 8px;
+      padding: 8px;
+      border-radius: 6px;
+      border: 2px solid var(--wine-main);
+      box-sizing: border-box;
+      font-size: 12px;
+      font-weight: bold;
+    }
+    .gallery-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .gallery-card {
+      background: #fff;
+      border: 2px solid var(--wine-main);
+      border-radius: 10px;
+      overflow: hidden;
+      box-shadow: 0 4px 0 var(--wine-dark);
+      position: relative;
+    }
+    .gallery-card img { width: 100%; height: 110px; object-fit: cover; }
+    .gallery-card-content { padding: 6px; }
+    .gallery-card-tag {
+      font-size: 9px;
+      background: var(--wine-main);
+      color: white;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 900;
+    }
+    .delete-btn-mini {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: var(--wine-dark);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 22px;
+      height: 22px;
+      font-size: 12px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(42, 8, 8, 0.75);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+    }
+    .modal-content {
+      background: white;
+      padding: 20px;
+      border-radius: 20px;
+      text-align: center;
+      max-width: 300px;
+      width: 85%;
+      border: 3px solid var(--wine-main);
+      box-shadow: 0 10px 0 var(--wine-dark);
+    }
+
+    /* 注文確認モーダル */
+    .confirm-modal-content {
+      background: #FFFFFF;
+      padding: 20px;
+      border-radius: 20px;
+      max-width: 360px;
+      width: 90%;
+      border: 3px solid var(--wine-main);
+      box-shadow: 0 10px 0 var(--wine-dark);
+      text-align: left;
+    }
+    .confirm-list-box {
+      background: var(--cream-bg);
+      border: 2px dashed var(--wine-main);
+      border-radius: 12px;
+      padding: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin: 10px 0;
+    }
+    .confirm-item {
+      font-size: 12px;
+      font-weight: bold;
+      color: var(--text-dark);
+      border-bottom: 1px dashed #e0d5d5;
+      padding: 6px 0;
+    }
+    .confirm-item:last-child {
+      border-bottom: none;
+    }
+    .confirm-btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 15px;
+    }
+    .confirm-btn-group .btn {
+      margin-top: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="brand-title">⚡ SMILE CHARGE ⚡</div>
+
+    <div class="nav-tabs">
+      <button class="tab-btn active" onclick="switchTab('quiz')">🍨 診断</button>
+      <button class="tab-btn" onclick="switchTab('order')">📝 注文</button>
+      <button class="tab-btn" onclick="switchTab('gallery')">📸 投稿</button>
+    </div>
+
+    <!-- 1. 診断画面 -->
+    <div id="quiz-tab">
+      <div id="start-screen">
+        <h1>性格×パフェ診断</h1>
+        <p class="description">5つの質問に答えて、あなたの性格タイプとピッタリな特製パフェを見つけよう！</p>
+        <button class="btn" onclick="startQuiz()">診断をはじめる</button>
+      </div>
+
+      <div id="quiz-screen" class="hidden">
+        <div style="font-size: 12px; color: var(--wine-main); font-weight:900; text-align:center; margin-bottom: 10px;" id="progress">Q1 / 5</div>
+        <h2 id="question-text" style="font-size: 15px; margin-bottom: 15px; color: var(--text-dark);"></h2>
+        <div id="options-container"></div>
+      </div>
+
+      <div id="result-screen" class="hidden" style="text-align:center;">
+        <span style="background:var(--wine-main); color:white; padding:4px 12px; border-radius:12px; font-size:12px; font-weight:900;" id="result-code">----</span>
+        <h2 id="result-title" style="color: var(--wine-main); margin: 10px 0;">診断結果</h2>
+        
+        <div style="background:var(--cream-bg); border-radius:12px; padding:12px; margin-bottom:15px; text-align:left; border:2px solid var(--wine-main);">
+          <div style="font-size:11px; color:var(--wine-main); font-weight:900; margin-bottom:3px;">あなたの性格診断結果</div>
+          <p id="result-desc" style="font-size: 13px; color:var(--text-dark); margin:0; line-height:1.5; font-weight:bold;"></p>
+        </div>
+        
+        <div style="background-color: #FFFFFF; border: 2px dashed var(--wine-main); border-radius: 12px; padding: 12px; margin: 15px 0;">
+          <div style="font-size: 11px; color: var(--wine-main); font-weight: 900;">あなたにぴったりのおすすめパフェ</div>
+          <div id="parfait-name" style="font-size: 16px; font-weight: 900; color: var(--wine-main); margin-top: 3px;">----</div>
+          
+          <div style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--wine-main); text-align: left;">
+            <div style="font-size: 11px; color: var(--wine-main); font-weight: 900; margin-bottom: 3px;">🍓 おすすめ組み合わせ:</div>
+            <div id="parfait-toppings" style="font-size: 12px; color: var(--text-dark); font-weight: bold; background: var(--cream-bg); padding: 6px; border-radius: 6px; border: 1px solid var(--wine-main);">----</div>
+          </div>
+
+          <p id="parfait-detail" style="font-size: 12px; color: var(--text-muted); margin-top: 8px; text-align: left; line-height:1.4; font-weight:bold;"></p>
+        </div>
+        
+        <button class="btn" onclick="switchTab('order')">👉 注文画面へ進む</button>
+        <button class="btn" onclick="restartQuiz()" style="background-color:#776666; margin-top:8px; border-color:#443333; box-shadow:0 4px 0 #443333;">もう一度診断する</button>
+      </div>
+    </div>
+
+    <!-- 2. 注文画面 -->
+    <div id="order-tab" class="hidden">
+      <!-- スマイルチャージゲージUI -->
+      <div class="smile-charge-card">
+        <div class="charge-header">
+          <span class="charge-title">
+            <span class="bolt-icon" id="bolt-icon">⚡</span>
+            <span>SMILE CHARGE</span>
+          </span>
+          <span class="charge-status-text" id="charge-status-text">⚡ チャージ中…</span>
+        </div>
+        <div class="charge-bar-container">
+          <div class="charge-bar-fill" id="charge-bar-fill"></div>
+          <span class="charge-percent-badge" id="charge-percent-text">0%</span>
+        </div>
+      </div>
+
+      <h2>🍨 CUSTOM ORDER</h2>
+      <p class="description">お名前を入力し、サイズやトッピングを選んでカートに追加してね！</p>
+
+      <form id="order-form">
+        <!-- ニックネーム入力欄 -->
+        <div class="section-title">0. NAME / ニックネーム</div>
+        <div style="margin-bottom: 10px;">
+          <input type="text" id="user-nickname" class="input-text" placeholder="お名前・ニックネームを入力" required>
+        </div>
+
+        <div class="section-title">1. SIZE / サイズを選ぶ</div>
+        <div class="menu-group">
+          <label class="menu-item"><span><input type="radio" name="size" value="250" data-name="Mサイズ" checked> Mサイズ (210ml)</span><b>250円</b></label>
+          <label class="menu-item"><span><input type="radio" name="size" value="350" data-name="Lサイズ"> Lサイズ (275ml)</span><b>350円</b></label>
+        </div>
+
+        <div class="section-title">2. ICE CREAM / アイスを選ぶ</div>
+        <div class="menu-group">
+          <label class="menu-item"><span><input type="radio" name="ice" value="0" data-name="アイスなし" checked> なし</span><b>0円</b></label>
+          <label class="menu-item"><span><input type="radio" name="ice" value="60" data-name="バニラアイス"> バニラアイス</span><b>+60円</b></label>
+          <label class="menu-item"><span><input type="radio" name="ice" value="60" data-name="抹茶アイス"> 抹茶アイス</span><b>+60円</b></label>
+        </div>
+
+        <div class="section-title">3. QUANTITY TOPPING / 個数指定</div>
+        <div class="menu-group">
+          <div class="menu-item"><span>ドーナツ(きなこ) (+40円/個)</span><input type="number" id="top-donut" min="0" max="5" value="0" style="width:40px;"></div>
+          <div class="menu-item"><span>トッポ (+20円/本)</span><input type="number" id="top-toppo" min="0" max="10" value="0" style="width:40px;"></div>
+          <div class="menu-item">
+            <span>白玉 (+20円/5個)</span>
+            <select id="top-shiratama">
+              <option value="0">0セット</option>
+              <option value="20">1セット (5個: +20円)</option>
+              <option value="40">2セット (10個: +40円)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="section-title">4. TOPPINGS / その他トッピング</div>
+        <div class="menu-group">
+          <label class="menu-item"><span><input type="checkbox" class="top-check" data-name="チョコソース" value="20"> チョコソース</span><b>+20円</b></label>
+          <label class="menu-item"><span><input type="checkbox" class="top-check" data-name="きなこ" value="10"> きなこ</span><b>+10円</b></label>
+          <label class="menu-item"><span><input type="checkbox" class="top-check" data-name="あんこ" value="30"> あんこ</span><b>+30円</b></label>
+          <label class="menu-item"><span><input type="checkbox" class="top-check" data-name="チョコスプレー" value="10"> チョコスプレー</span><b>+10円</b></label>
+          <label class="menu-item"><span><input type="checkbox" class="top-check" data-name="冷凍イチゴ" value="20"> 冷凍イチゴ</span><b>+20円</b></label>
+          <label class="menu-item"><span><input type="checkbox" class="top-check" data-name="干し芋" value="20"> 干し芋</span><b>+20円</b></label>
+          <label class="menu-item"><span><input type="checkbox" class="top-check" data-name="黒蜜" value="30"> 黒蜜</span><b>+30円</b></label>
+          <label class="menu-item"><span><input type="checkbox" class="top-check" data-name="はちみつ" value="20"> はちみつ</span><b>+20円</b></label>
+        </div>
+      </form>
+
+      <!-- 固定リアルタイム合計バー＆追加ボタン -->
+      <div class="custom-bottom-bar-wrapper">
+        <div class="custom-bottom-bar">
+          <div class="custom-price-display">
+            <span class="custom-price-label">🍨 現在の合計</span>
+            <span class="custom-price-val" id="current-custom-total">¥250</span>
+          </div>
+          <button class="add-cart-btn-fixed" type="button" onclick="addToCart()">🛒 カートに追加 →</button>
+        </div>
+      </div>
+
+      <!-- カート領域 -->
+      <div class="cart-box">
+        <div style="font-weight:900; font-size:13px; color:var(--wine-main);">🛒 注文リスト (<span id="cart-count">0</span>点)</div>
+        <div id="cart-items-list">
+          <div style="font-size:11px; color:var(--text-muted); text-align:center; margin: 10px 0; font-weight:bold;">カートは空です。パフェを作成して追加してください。</div>
+        </div>
+      </div>
+
+      <div class="total-box">
+        <span>注文全体の合計金額:</span>
+        <span id="total-price" style="font-family:'Impact', sans-serif; font-size:20px; letter-spacing:0.5px;">0円</span>
+      </div>
+      <button class="btn" id="submit-btn" onclick="submitOrder()" disabled style="opacity:0.5;">注文を送信する！</button>
+
+      <div id="reopen-qr-area" class="hidden" style="margin-top: 15px; background: var(--cream-bg); border:2px solid var(--wine-main); padding: 12px; border-radius: 12px; text-align: center;">
+        <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 900; color: var(--wine-main);">📱 会計用のQRコード</p>
+        <button class="btn" style="margin: 0;" onclick="document.getElementById('qr-modal').classList.remove('hidden')">
+          QRコードを表示する
+        </button>
+      </div>
+
+      <div class="bottom-spacer"></div>
+    </div>
+
+    <!-- 3. ギャラリー投稿画面 -->
+    <div id="gallery-tab" class="hidden">
+      <h2>📸 GALLERY</h2>
+      <p class="description">みんなの投稿がリアルタイムで一覧に表示されます！</p>
+
+      <div class="upload-box">
+        <b style="font-size: 12px; display: block; margin-bottom: 5px; color:var(--wine-main);">写真を選んで投稿する</b>
+        <select id="post-type">
+          <option value="自作パフェ">🍨 自作パフェ</option>
+          <option value="パフェ顔">😊 幸せパフェ顔</option>
+        </select>
+        <input type="file" id="post-file" accept="image/*" style="background: white;">
+        <textarea id="post-comment" placeholder="ひとことコメント" rows="2"></textarea>
+        <button class="btn" id="upload-btn" style="margin-top:5px; padding:8px; font-size:13px;" onclick="addPost()">投稿する</button>
+      </div>
+
+      <div class="gallery-grid" id="gallery-grid"></div>
+    </div>
+  </div>
+
+  <!-- 注文確認モーダル -->
+  <div id="confirm-modal" class="modal-overlay hidden">
+    <div class="confirm-modal-content">
+      <h3 style="margin-top:0; color:var(--wine-main); text-align:center; font-family:'Impact', sans-serif;">ORDER CONFIRMATION</h3>
+      <p style="font-size:12px; font-weight:bold; color:var(--text-muted); text-align:center; margin-bottom:10px;">
+        注文内容をご確認ください
+      </p>
+
+      <div style="font-size:13px; font-weight:bold; color:var(--wine-main); margin-bottom:6px;">
+        お名前: <span id="confirm-user-name" style="color:var(--text-dark);"></span>
+      </div>
+      
+      <div class="confirm-list-box" id="confirm-items-list">
+        <!-- 注文詳細がJavaScriptで挿入されます -->
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; font-weight:900; font-size:15px; color:var(--wine-main); margin-top:10px;">
+        <span>合計金額:</span>
+        <span id="confirm-total-price" style="font-family:'Impact', sans-serif; font-size:22px;">0円</span>
+      </div>
+
+      <div class="confirm-btn-group">
+        <button type="button" class="btn" style="background:#776666; border-color:#443333; box-shadow:0 3px 0 #443333;" onclick="closeConfirmModal()">修正する</button>
+        <button type="button" class="btn" onclick="executeSubmitOrder()">確定して送信</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- QRコード表示モーダル -->
+  <div id="qr-modal" class="modal-overlay hidden">
+    <div class="modal-content" id="modal-box">
+      <div id="payment-pending-view">
+        <h3 style="margin-top:0; color:var(--wine-main); font-family:'Impact', sans-serif;">ORDER SUBMITTED!</h3>
+        <p style="font-size:12px; color:var(--text-dark); margin-bottom:10px; font-weight:bold;">レジでこちらのQRコードをお見せください</p>
+        <div id="modal-order-num" style="font-weight:900; font-size:20px; color:var(--wine-main); margin-bottom:5px; font-family:'Impact', sans-serif;"></div>
+        
+        <div id="qrcode" style="display:flex; justify-content:center; margin:15px auto; pointer-events: none;"></div>
+        
+        <div id="modal-price" style="font-size:16px; font-weight:900; margin-bottom:15px; color:var(--text-dark);"></div>
+        
+        <button type="button" class="btn" style="background:#776666; border-color:#443333; box-shadow:0 3px 0 #443333;" onclick="closeQrModal()">いったん閉じる</button>
+      </div>
+      
+      <div id="payment-success-view" class="hidden">
+        <div style="font-size:50px; margin-bottom:10px;">🎉</div>
+        <h2 style="color:var(--wine-main); margin:0 0 10px 0; font-family:'Impact', sans-serif;">PAYMENT COMPLETE!</h2>
+        <p style="font-size:13px; color:var(--text-dark); font-weight:bold;">お支払いが完了しました。<br>パフェの出来上がりまで少々お待ちください！</p>
+        <button type="button" class="btn" onclick="closeQrModal()">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCE-Ssm6n_VK0_UTPvsR7LF5hmbMHmFjnA",
+      authDomain: "pahue-47da7.firebaseapp.com",
+      projectId: "pahue-47da7",
+      storageBucket: "pahue-47da7.firebasestorage.app",
+      messagingSenderId: "802677688652",
+      appId: "1:802677688652:web:79d3602c6078b8931d67e9"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    function closeQrModal() {
+      document.getElementById("qr-modal").classList.add("hidden");
+    }
+
+    function switchTab(t) {
+      document.getElementById('quiz-tab').classList.toggle('hidden', t !== 'quiz');
+      document.getElementById('order-tab').classList.toggle('hidden', t !== 'order');
+      document.getElementById('gallery-tab').classList.toggle('hidden', t !== 'gallery');
+      document.querySelectorAll('.tab-btn')[0].classList.toggle('active', t === 'quiz');
+      document.querySelectorAll('.tab-btn')[1].classList.toggle('active', t === 'order');
+      document.querySelectorAll('.tab-btn')[2].classList.toggle('active', t === 'gallery');
+    }
+
+    /* 質問＆結果データ */
+    const questions = [
+      {
+        text: "休日、友達から急なお出かけの誘いがあったら？",
+        options: [
+          { text: "即OK！みんなで賑やかに楽しむ！", scores: { E: 2, V: 1 } },
+          { text: "自分の予定や気分に合わせて慎重に考える", scores: { I: 2, N: 1 } }
+        ]
+      },
+      {
+        text: "新しいお店に入るなら、どっちのタイプ？",
+        options: [
+          { text: "SNSで話題のキラキラポップなお店！", scores: { E: 1, S: 2, V: 1 } },
+          { text: "隠れ家っぽい落ち着いた雰囲気のお店", scores: { I: 1, M: 2, N: 1 } }
+        ]
+      },
+      {
+        text: "何か選ぶときの「決め手」はどっち？",
+        options: [
+          { text: "見た目のワクワク感や楽しさ！", scores: { S: 1, C: 2, V: 1 } },
+          { text: "ほっとする安心感や素材の良さ", scores: { M: 1, F: 2, N: 1 } }
+        ]
+      },
+      {
+        text: "自分の性格をひとことで言うなら？",
+        options: [
+          { text: "勢いとノリで行動するタイプ", scores: { E: 1, C: 2 } },
+          { text: "マイペースで自分のこだわりを大切にするタイプ", scores: { I: 1, F: 2 } }
+        ]
+      },
+      {
+        text: "パフェを食べるとき、一番テンションが上がるのは？",
+        options: [
+          { text: "映える可愛いデザインやザクザク食感！", scores: { S: 2, C: 1, V: 1 } },
+          { text: "白玉やあんこなど、とろける和み食感！", scores: { M: 2, F: 1, N: 1 } }
+        ]
+      }
+    ];
+
+    const results = {
+      "ESCV": { title: "超ポップな天真爛漫ムードメーカー", desc: "いつも明るくポジティブで、周りを自然と笑顔にするエネルギッシュな性格！面白いことや華やかなイベントが大好きです。", parfait: "にぎやかポップチョコパフェ", toppings: "バニラアイス, チョコソース, トッポ, チョコスプレー", detail: "見た目も彩り豊かでサクサク楽しいチョコスプレーとトッポの組み合わせ。あなたの明るさにぴったりの王道華やかパフェ！" },
+      "ESCN": { title: "好奇心旺盛なトレンドリーダー", desc: "面白いことや新しいものが大好きで行動力抜群！自分の「スキ」に素直で、周りを楽しませる才能があります。", parfait: "いちごフルーティーバニラパフェ", toppings: "バニラアイス, 冷冷凍イチゴ, チョコソース, トッポ", detail: "見た目も華やかな甘酸っぱいイチゴとチョコのコンビ。流行に敏感なあなたを満足させる刺激的な美味しさ！" },
+      "ESFV": { title: "愛されキャラのなごみ系ポップスター", desc: "明るくフレンドリーだけど、争いごとは苦手な平和主義者。みんなと一緒に笑顔で盛り上がる時間が何よりのパワー源です。", parfait: "ハニーチョコバニラパフェ", toppings: "バニラアイス, はちみつ, チョコソース, チョコスプレー", detail: "とろけるはちみつとチョコの贅沢な甘さ。誰もが笑顔になれるハッピー感満点のパフェ！" },
+      "ESFN": { title: "豪快でお祭り大好きなボリューミー派", desc: "心が広く、みんなでワイワイ過ごすのが大好きな性格！細かいことは気にせず、今を全力で楽しむエネルギーにあふれています。", parfait: "満足きなこドーナツパフェ", toppings: "バニラアイス, ドーナツ(きなこ), チョコソース", detail: "インパクト抜群のドーナツが乗った満足度最高峰のパフェ！" },
+      "EMCV": { title: "華やかでおしゃれな和モダンクリエイター", desc: "伝統的な良さとトレンドをミックスさせるセンスの持ち主。周りをパッと明るくする華やかさと深いこだわりを持っています。", parfait: "彩り抹茶ベリーパフェ", toppings: "抹茶アイス, 冷凍イチゴ, トッポ, チョコスプレー", detail: "抹茶の緑にイチゴの赤が映えるアート感あふれる一品！" },
+      "EMCN": { title: "気さくで味わい深いムードメーカー", desc: "飾らない人柄で誰からも愛される親しみやすい性格。素朴な良さを知り、さりげないこだわりを大切にします。", parfait: "干し芋チョコクラシックパフェ", toppings: "バニラアイス, 干し芋, チョコソース, トッポ", detail: "干し芋の素朴な味わいにチョコのアクセント。人と被らないユニークな組み合わせを楽しむあなたへ。" },
+      "EMFV": { title: "包容力バツグンの癒やし系リーダー", desc: "周囲への配慮を忘れない温かい人柄。みんながホッと安心できる優しさで、チームや友達を自然とまとめます。", parfait: "彩り抹茶白玉パフェ", toppings: "抹茶アイス, 白玉, 冷凍イチゴ, 黒蜜", detail: "赤と緑のコントラストが美しい、優しさと可愛らしさを兼ね備えた和風パフェ。" },
+      "EMFN": { title: "頼りになるフレンドリー大黒柱", desc: "誠実で頼りになり、周りからの信頼も厚い安定感バツグンタイプ。みんなが満足できるベストな選択をいつでも追求できます。", parfait: "濃厚あずきドーナツパフェ", toppings: "バニラアイス, ドーナツ(きなこ), あんこ", detail: "ドーナツとあんこの黄金コンビ。誰にでも愛される間違いない美味しさ！" },
+      "ISCV": { title: "センスが光る独自世界観派", desc: "自分だけのこだわりや世界観を大切にするタイプ。静かだけど内面には強い情熱とセンスを秘めています。", parfait: "ハニーチョコ白玉パフェ", toppings: "バニラアイス, はちみつ, チョコソース, 白玉", detail: "白玉とはちみつのこだわり食感。自分の世界にじっくり浸れる贅沢な甘さ。" },
+      "ISCN": { title: "クールでマイペースなスマート派", desc: "無駄なことは好まず、洗練されたものを好むクールな性格。一人で過ごす時間にじっくり好きなものを堪能します。", parfait: "いちごチョコバニラパフェ", toppings: "バニラアイス, チョコソース, 冷冷凍イチゴ", detail: "甘酸っぱさとチョコのコクをスマートに味わえるすっきり甘いパフェ。" },
+      "ISFV": { title: "心優しい隠れロマンチスト", desc: "穏やかで謙虚、人の気持ちに寄り添える心の持ち主。日常の中にある小さな幸せや美しいものを見つけるのが得意です。", parfait: "イチゴ白玉バニラパフェ", toppings: "バニラアイス, 白玉, 冷凍イチゴ, チョコスプレー", detail: "もちもちの白玉と華やかなイチゴ。心がときめく和洋ミックスな可愛さ。" },
+      "ISFN": { title: "ほっこりおだやかなナチュラル派", desc: "無理をせず自然体で生きる癒ややしの存在。穏やかな時間が好きで、周りの人にも温かい安らぎを与えます。", parfait: "ほっこりあんこはちみつパフェ", toppings: "バニラアイス, あんこ, 白玉, はちみつ", detail: "あんこともっちり白玉のやさしい甘さ。自分をいたわる時間のお供に。" },
+      "IMCV": { title: "渋くて深いこだわり探求家", desc: "流行に流されず、自分が本当に良いと思ったものを追求する通な人。静かに自分の「好き」を深掘りします。", parfait: "黒蜜抹茶トッポパフェ", toppings: "抹茶アイス, 黒蜜, トッポ, きなこ", detail: "甘さ控えめな抹茶アイスに黒蜜ときなこの香ばしさ。洗練された味わい。" },
+      "IMCN": { title: "独自の道をゆく職人タイプ", desc: "自分の軸がしっかりしており、他人に合わせすぎずマイペースを貫ける強さを持つ人。妥協のない情熱家です。", parfait: "抹茶ドーナツ和風パフェ", toppings: "抹茶アイス, ドーナツ(きなこ), 黒蜜", detail: "濃厚抹茶アイスときなこドーナツの濃密な味わい。妥協なき美味しさ。" },
+      "IMFV": { title: "思慮深く品のある和み系", desc: "落ち着いた雰囲気を纏い、物事を深く考えるタイプ。伝統的なものや丁寧な手仕事に惹かれる品のある性格です。", parfait: "きなこ黒蜜抹茶パフェ", toppings: "抹茶アイス, 白玉, きなこ, 黒蜜", detail: "ふんわり香るきなことツルッとした白玉。贅沢で品のある和のハーモニー。" },
+      "IMFN": { title: "静かなる情熱を秘めた極み派", desc: "控えめだけど芯が非常に強く、自分の時間や世界を何より大切にする人。本物を見抜く目を持っています。", parfait: "本格和風抹茶パフェ", toppings: "抹茶アイス, あんこ, 白玉, 黒蜜", detail: "抹茶・あんこ・白玉・黒蜜を重ねた本格派。至高の一人時間を演出。" }
+    };
+
+    let currentQ = 0;
+    let userScores = { E: 0, I: 0, S: 0, M: 0, C: 0, F: 0, V: 0, N: 0 };
+
+    function startQuiz() { 
+      document.getElementById("start-screen").classList.add("hidden"); 
+      document.getElementById("quiz-screen").classList.remove("hidden"); 
+      currentQ = 0; 
+      userScores = { E: 0, I: 0, S: 0, M: 0, C: 0, F: 0, V: 0, N: 0 }; 
+      showQ(); 
+    }
+
+    function showQ() {
+      const q = questions[currentQ];
+      document.getElementById("progress").innerText = `Q${currentQ + 1} / 5`;
+      document.getElementById("question-text").innerText = q.text;
+      const c = document.getElementById("options-container"); 
+      c.innerHTML = "";
+      q.options.forEach(o => {
+        const b = document.createElement("button"); 
+        b.className = "option-btn"; 
+        b.innerText = o.text;
+        b.onclick = () => { 
+          for (let key in o.scores) { userScores[key] += o.scores[key]; }
+          currentQ++; 
+          (currentQ < 5) ? showQ() : showRes(); 
+        };
+        c.appendChild(b);
+      });
+    }
+
+    function showRes() {
+      document.getElementById("quiz-screen").classList.add("hidden"); 
+      document.getElementById("result-screen").classList.remove("hidden");
+      
+      const attr1 = userScores.E >= userScores.I ? "E" : "I";
+      const attr2 = userScores.S >= userScores.M ? "S" : "M";
+      const attr3 = userScores.C >= userScores.F ? "C" : "F";
+      const attr4 = userScores.V >= userScores.N ? "V" : "N";
+
+      const key = `${attr1}${attr2}${attr3}${attr4}`;
+      const res = results[key] || results["ESCV"];
+
+      document.getElementById("result-code").innerText = key;
+      document.getElementById("result-title").innerText = res.title;
+      document.getElementById("result-desc").innerText = res.desc;
+      document.getElementById("parfait-name").innerText = res.parfait;
+      document.getElementById("parfait-toppings").innerText = res.toppings;
+      document.getElementById("parfait-detail").innerText = res.detail;
+    }
+
+    function restartQuiz() { 
+      document.getElementById("result-screen").classList.add("hidden"); 
+      document.getElementById("start-screen").classList.remove("hidden"); 
+    }
+
+    /* 価格＆カスタム計算 */
+    function calculateCurrentItemTotal() {
+      let itemPrice = 0;
+      let details = [];
+
+      const size = document.querySelector('input[name="size"]:checked');
+      if (size) {
+        itemPrice += parseInt(size.value) || 0;
+        details.push(size.dataset.name);
+      }
+
+      const ice = document.querySelector('input[name="ice"]:checked');
+      if (ice) {
+        itemPrice += parseInt(ice.value) || 0;
+        if (ice.value !== "0") details.push(ice.dataset.name);
+      }
+
+      const d = parseInt(document.getElementById("top-donut").value) || 0;
+      if (d > 0) { itemPrice += d * 40; details.push(`ドーナツ(${d}個)`); }
+
+      const t = parseInt(document.getElementById("top-toppo").value) || 0;
+      if (t > 0) { itemPrice += t * 20; details.push(`トッポ(${t}本)`); }
+
+      const s = parseInt(document.getElementById("top-shiratama").value) || 0;
+      if (s > 0) { itemPrice += s; details.push(`白玉(${s === 20 ? '5個' : '10個'})`); }
+
+      document.querySelectorAll('.top-check:checked').forEach(cb => {
+        itemPrice += parseInt(cb.value) || 0;
+        details.push(cb.dataset.name);
+      });
+
+      return { price: itemPrice, details: details };
+    }
+
+    /* スマイルチャージ＆合計UI更新 */
+    function updateCustomStateUI() {
+      const currentItem = calculateCurrentItemTotal();
+      const totalDisplay = document.getElementById("current-custom-total");
+      if (totalDisplay) {
+        totalDisplay.innerText = `¥${currentItem.price}`;
+      }
+
+      let score = 0;
+      const size = document.querySelector('input[name="size"]:checked');
+      if (size && size.dataset.name === "Lサイズ") score += 20;
+      else score += 10;
+
+      const ice = document.querySelector('input[name="ice"]:checked');
+      if (ice && ice.value !== "0") score += 20;
+
+      const donut = parseInt(document.getElementById("top-donut").value) || 0;
+      score += Math.min(donut * 10, 20);
+
+      const toppo = parseInt(document.getElementById("top-toppo").value) || 0;
+      score += Math.min(toppo * 5, 15);
+
+      const shiratama = parseInt(document.getElementById("top-shiratama").value) || 0;
+      if (shiratama === 20) score += 10;
+      else if (shiratama === 40) score += 15;
+
+      const checkedCount = document.querySelectorAll('.top-check:checked').length;
+      score += checkedCount * 10;
+
+      const percent = Math.min(Math.max(score, 0), 100);
+
+      const fillBar = document.getElementById("charge-bar-fill");
+      const percentText = document.getElementById("charge-percent-text");
+      const statusText = document.getElementById("charge-status-text");
+      const boltIcon = document.getElementById("bolt-icon");
+
+      if (fillBar) fillBar.style.width = percent + "%";
+      if (percentText) percentText.innerText = percent + "%";
+
+      if (statusText && boltIcon) {
+        if (percent < 30) {
+          statusText.innerText = "⚡ チャージ中…";
+          boltIcon.classList.remove("full-charge");
+        } else if (percent < 60) {
+          statusText.innerText = "⚡ いい感じ！";
+          boltIcon.classList.remove("full-charge");
+        } else if (percent < 90) {
+          statusText.innerText = "⚡ かなりチャージされてる！";
+          boltIcon.classList.remove("full-charge");
+        } else if (percent < 100) {
+          statusText.innerText = "⚡ もうすぐ完成！";
+          boltIcon.classList.remove("full-charge");
+        } else {
+          statusText.innerText = "⚡⚡⚡ SMILE CHARGE COMPLETE! ⚡⚡⚡";
+          boltIcon.classList.add("full-charge");
+        }
+      }
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      const orderForm = document.getElementById("order-form");
+      if (orderForm) {
+        orderForm.addEventListener("change", updateCustomStateUI);
+        orderForm.addEventListener("input", updateCustomStateUI);
+      }
+      updateCustomStateUI();
+    });
+
+    /* カート機能 */
+    let cart = [];
+
+    function addToCart() {
+      const currentItem = calculateCurrentItemTotal();
+      cart.push({ price: currentItem.price, details: currentItem.details });
+      updateCartUI();
+      
+      // お名前フィールド以外をリセット
+      const nameVal = document.getElementById("user-nickname").value;
+      document.getElementById("order-form").reset();
+      document.getElementById("user-nickname").value = nameVal;
+
+      updateCustomStateUI();
+      alert(`パフェ(¥${currentItem.price})をカートに追加しました！`);
+    }
+
+    function removeFromCart(index) {
+      cart.splice(index, 1);
+      updateCartUI();
+    }
+
+    function updateCartUI() {
+      const list = document.getElementById("cart-items-list");
+      const countSpan = document.getElementById("cart-count");
+      const totalSpan = document.getElementById("total-price");
+      const submitBtn = document.getElementById("submit-btn");
+
+      list.innerHTML = "";
+      countSpan.innerText = cart.length;
+
+      let grandTotal = 0;
+
+      if (cart.length === 0) {
+        list.innerHTML = `<div style="font-size:11px; color:var(--text-muted); text-align:center; margin: 10px 0; font-weight:bold;">カートは空です。パフェを作成して追加してください。</div>`;
+        submitBtn.disabled = true;
+        submitBtn.style.opacity = "0.5";
+      } else {
+        cart.forEach((item, index) => {
+          grandTotal += item.price;
+          const div = document.createElement("div");
+          div.className = "cart-item";
+          div.innerHTML = `
+            <div>
+              <b>パフェ #${index + 1} (${item.price}円)</b><br>
+              <span style="color:#665555;">${item.details.join(', ')}</span>
+            </div>
+            <button class="cart-item-del" onclick="removeFromCart(${index})">✕</button>
+          `;
+          list.appendChild(div);
+        });
+        submitBtn.disabled = false;
+        submitBtn.style.opacity = "1";
+      }
+
+      totalSpan.innerText = grandTotal + "円";
+    }
+
+    function playSuccessSound() {
+      try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const playTone = (freq, start, duration) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.frequency.value = freq;
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(ctx.currentTime + start);
+          osc.stop(ctx.currentTime + start + duration);
+        };
+        playTone(523.25, 0, 0.1);
+        playTone(659.25, 0.1, 0.1);
+        playTone(783.99, 0.2, 0.3);
+      } catch(e){}
+    }
+
+    /* 注文確認モーダルの制御 */
+    function submitOrder() {
+      if (cart.length === 0) return;
+
+      const userName = document.getElementById("user-nickname").value.trim();
+      if (!userName) {
+        alert("お名前（ニックネーム）を入力してください！");
+        document.getElementById("user-nickname").focus();
+        return;
+      }
+
+      document.getElementById("confirm-user-name").innerText = userName;
+
+      const confirmList = document.getElementById("confirm-items-list");
+      const confirmTotal = document.getElementById("confirm-total-price");
+      confirmList.innerHTML = "";
+
+      let grandTotal = 0;
+
+      cart.forEach((item, idx) => {
+        grandTotal += item.price;
+        const div = document.createElement("div");
+        div.className = "confirm-item";
+        div.innerHTML = `
+          <div style="color:var(--wine-main);"><b>パフェ #${idx + 1} - ¥${item.price}</b></div>
+          <div style="font-size:11px; color:var(--text-muted);">${item.details.join(', ')}</div>
+        `;
+        confirmList.appendChild(div);
+      });
+
+      confirmTotal.innerText = `${grandTotal}円`;
+      document.getElementById("confirm-modal").classList.remove("hidden");
+    }
+
+    function closeConfirmModal() {
+      document.getElementById("confirm-modal").classList.add("hidden");
+    }
+
+    /* 実際の Firebase 注文送信処理 */
+    let currentOrderRef = null;
+    function executeSubmitOrder() {
+      closeConfirmModal();
+      if (cart.length === 0) return;
+
+      const userName = document.getElementById("user-nickname").value.trim() || "ゲスト";
+      const orderNum = Math.floor(100 + Math.random() * 900);
+      let grandTotal = 0;
+      let allDetails = [];
+
+      cart.forEach((item, idx) => {
+        grandTotal += item.price;
+        allDetails.push(`[パフェ${idx + 1}] ${item.details.join(', ')} (${item.price}円)`);
+      });
+
+      if (currentOrderRef) currentOrderRef.off();
+
+      currentOrderRef = db.ref('orders').push();
+      currentOrderRef.set({
+        orderNum: orderNum,
+        userName: userName,
+        price: grandTotal,
+        details: allDetails,
+        cartItems: cart,
+        status: 'pending',
+        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+      }).then(() => {
+        document.getElementById("qrcode").innerHTML = "";
+        new QRCode(document.getElementById("qrcode"), { text: currentOrderRef.key, width: 160, height: 160 });
+        document.getElementById("modal-order-num").innerText = `ORDER #${orderNum} (${userName}様)`;
+        document.getElementById("modal-price").innerText = `お支払額: ${grandTotal}円 (${cart.length}点)`;
+        
+        document.getElementById("payment-pending-view").classList.remove("hidden");
+        document.getElementById("payment-success-view").classList.add("hidden");
+        document.getElementById("qr-modal").classList.remove("hidden");
+        document.getElementById("reopen-qr-area").classList.remove("hidden");
+
+        cart = [];
+        updateCartUI();
+
+        currentOrderRef.on('value', (snapshot) => {
+          const val = snapshot.val();
+          if (val && (val.status === 'paid' || val.status === 'completed')) {
+            playSuccessSound();
+            document.getElementById("payment-pending-view").classList.add("hidden");
+            document.getElementById("payment-success-view").classList.remove("hidden");
+            document.getElementById("reopen-qr-area").classList.add("hidden");
+          }
+        });
+      });
+    }
+
+    /* 画像投稿 */
+    function addPost() {
+      const type = document.getElementById("post-type").value;
+      const fileInput = document.getElementById("post-file");
+      const comment = document.getElementById("post-comment").value;
+      const btn = document.getElementById("upload-btn");
+
+      if (!fileInput.files || fileInput.files.length === 0) { alert("写真を選択してください！"); return; }
+      btn.disabled = true; btn.innerText = "投稿中...";
+
+      const file = fileInput.files[0];
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = function() {
+          const canvas = document.createElement("canvas");
+          let width = img.width, height = img.height;
+          const max = 600;
+          if (width > height) { if (width > max) { height *= max / width; width = max; } }
+          else { if (height > max) { width *= max / height; height = max; } }
+          canvas.width = width; canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, width, height);
+          const base64Image = canvas.toDataURL("image/jpeg", 0.7);
+
+          const newRef = db.ref('posts').push();
+          const myPosts = JSON.parse(localStorage.getItem('myPosts') || '[]');
+          myPosts.push(newRef.key);
+          localStorage.setItem('myPosts', JSON.stringify(myPosts));
+
+          newRef.set({
+            type: type, imageUrl: base64Image, comment: comment, createdAt: firebase.database.ServerValue.TIMESTAMP
+          }).then(() => {
+            alert("投稿が完了しました！"); fileInput.value = ""; document.getElementById("post-comment").value = ""; btn.disabled = false; btn.innerText = "投稿する";
+          });
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function deletePost(key) { if (confirm("この投稿を削除しますか？")) { db.ref('posts/' + key).remove(); } }
+
+    db.ref('posts').on('value', (snapshot) => {
+      const data = snapshot.val();
+      const grid = document.getElementById("gallery-grid");
+      grid.innerHTML = "";
+      if (!data) return;
+      const myPosts = JSON.parse(localStorage.getItem('myPosts') || '[]');
+      Object.keys(data).reverse().forEach(key => {
+        const post = data[key];
+        const isMine = myPosts.includes(key);
+        const card = document.createElement("div");
+        card.className = "gallery-card";
+        card.innerHTML = `
+          ${isMine ? `<button class="delete-btn-mini" onclick="deletePost('${key}')">✕</button>` : ''}
+          <img src="${post.imageUrl}" alt="投稿" onerror="this.src='https://via.placeholder.com/150?text=Image+Error'">
+          <div class="gallery-card-content">
+            <span class="gallery-card-tag">${post.type === 'パフェ顔' ? '😊 パフェ顔' : '🍨 パフェ'}</span>
+            <div style="font-size:11px; margin-top:4px; font-weight:bold;">${post.comment || '無題'}</div>
+          </div>
+        `;
+        grid.appendChild(card);
+      });
+    });
+  </script>
+</body>
+</html>
